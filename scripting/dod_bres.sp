@@ -10,12 +10,12 @@
 
 #pragma semicolon 1
 
-// ====[ INCLUDES ]==========================================================
+// ====[ INCLUDES ]=======================================================
 #include <sdktools>
 #include <sdkhooks>
 #include <dodhooks>
 
-// ====[ CONSTANTS ]=========================================================
+// ====[ CONSTANTS ]======================================================
 #define PLUGIN_NAME    "DoD:S Bonusround Resistance"
 #define PLUGIN_VERSION "1.0"
 #define DOD_MAXPLAYERS 33
@@ -38,11 +38,11 @@ enum
 	SLOT_EXPLOSIVE
 }
 
-// ====[ VARIABLES ]=========================================================
+// ====[ VARIABLES ]======================================================
 new	Handle:BR_Enabled = INVALID_HANDLE, Handle:BR_MeleeOnly = INVALID_HANDLE,
 	bool:StopChain, bool:AllowWeaponsUsage[DOD_MAXPLAYERS + 1] = {true, ...};
 
-// ====[ PLUGIN ]============================================================
+// ====[ PLUGIN ]=========================================================
 public Plugin:myinfo  =
 {
 	name        = PLUGIN_NAME,
@@ -56,17 +56,17 @@ public Plugin:myinfo  =
 /* OnPluginStart()
  *
  * When the plugin starts up.
- * -------------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------- */
 public OnPluginStart()
 {
 	// Create version ConVar
 	CreateConVar("dod_bonusround_resistance", PLUGIN_VERSION, PLUGIN_NAME, FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
-	// And other useful ConVars
+	// And other plugin ConVars
 	BR_Enabled   = CreateConVar("dod_bres_enabled",    "1", "Whether or not enable Bonusround Resistance",                   FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	BR_MeleeOnly = CreateConVar("dod_bres_allowmelee", "1", "Whether or not dont allow losers to use all weapons but melee", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 
-	// Round events
+	// Hook events
 	HookEvent("dod_round_win",   OnRoundWin);
 	HookEvent("dod_round_start", OnRoundStart);
 
@@ -80,7 +80,7 @@ public OnPluginStart()
 /* OnPluginToggle()
  *
  * Called when plugin is enabled or disabled by ConVar.
- * -------------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------- */
 public OnPluginToggle(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	// Loop through all valid clients
@@ -113,7 +113,7 @@ public OnPluginToggle(Handle:convar, const String:oldValue[], const String:newVa
 /* OnClientPutInServer()
  *
  * Called when a client is entering the game.
- * -------------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------- */
 public OnClientPutInServer(client)
 {
 	// Allow player to use any weapon when its conected
@@ -126,7 +126,7 @@ public OnClientPutInServer(client)
 /* OnWeaponUsage()
  *
  * Called when the player uses specified weapon.
- * -------------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------- */
 public Action:OnWeaponUsage(client, weapon)
 {
 	// Dont allow to player use any other weapon than active one
@@ -136,7 +136,7 @@ public Action:OnWeaponUsage(client, weapon)
 /* OnRoundWin()
  *
  * Called when a round ends.
- * ----------------------------------------------------------------- */
+ * ----------------------------------------------------------------------- */
 public OnRoundWin(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	// Does plugin is enabled?
@@ -144,20 +144,20 @@ public OnRoundWin(Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		/**
 		* This dirty way works like a charm
-		* Since event is called *after* team has won, the original SetWinningTeam callback is already set up
-		* However, if we change round state during this callback, it will cause infinite loop during m_flRestartRoundTime
+		* Since event is called *after* team has won - the original SetWinningTeam callback is already set
+		* However, if we change round state during this callback, it will cause infinite loop during "m_flRestartRoundTime"
 		* In other words this event will be fired at every frame until new round starts
-		* A solution: after event is fired once (for all the plugins), stop the SetWinningTeam hook chain
-		* Winners panel will still be shown and round will started eventually after bonus round time is expired
+		* A solution is when event is fired, stop the SetWinningTeam callback chain
+		* The winners panel still will be shown, and round will started eventually after bonus round time is expired
 		*/
 		StopChain = true;
 
 		/**
-		* Call this Fake-RoundState
-		* It _should_ set round state to normal, but its wont
-		* SDKTools actually dont set round state properly as DoD Hooks does
-		* Why? If I'd use DoD Hooks 'SetRoundState' native, it would change round state immediately
-		* But this one just allows players to shoot during bonus round (as when round would run as usual)
+		* I call this Fake-RoundState
+		* It _should_ set round state to normal, but its won't for unknown reason
+		* Simply SDKTools dont set round state properly (as DoD Hooks does)
+		* So if I'd use DoD Hook's 'SetRoundState' native, it would change round state immediately
+		* Good thing that this one just allows players to shoot during bonus round, so it works, but different
 		*/
 		GameRules_SetProp("m_iRoundState", RoundState_RoundRunning);
 
@@ -167,10 +167,10 @@ public OnRoundWin(Handle:event, const String:name[], bool:dontBroadcast)
 			// Find all the losers
 			for (new i = 1; i <= MaxClients; i++)
 			{
-				// Ignore not connected and dead players
+				// Ignore != ingame players
 				if (!IsClientInGame(i)) continue;
 
-				// Team is not the same as winners, then we've got a losers!
+				// Compare winning team and team of other players to perform weapon changing
 				if (GetClientTeam(i) != GetEventInt(event, "team"))
 				{
 					RestrictWeaponsUsage(i);
@@ -183,10 +183,10 @@ public OnRoundWin(Handle:event, const String:name[], bool:dontBroadcast)
 /* OnRoundStart()
  *
  * Called when a new round starts.
- * ----------------------------------------------------------------- */
+ * ----------------------------------------------------------------------- */
 public OnRoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	// Make sure to allow SetWinningTeam callback to perform as usual when round starts
+	// Make sure to allow callback chain to perform as usual when round starts
 	// Otherwise DoD Hooks will block round ending at all
 	StopChain = false;
 
@@ -203,26 +203,26 @@ public OnRoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 /* OnSetWinningTeam()
  *
  * Called when a team is about to win.
- * ----------------------------------------------------------------- */
+ * ----------------------------------------------------------------------- */
 public Action:OnSetWinningTeam(index)
 {
-	// If plugin is enabled and round is ended, block hook chain; Plugin_Continue otherwise
+	// If plugin is enabled and round is ended, block winning; Plugin_Continue otherwise
 	return GetConVarBool(BR_Enabled) && StopChain ? Plugin_Handled : Plugin_Continue;
 }
 
 /* RestrictWeaponsUsage()
  *
  * Removes all weapons from player's inventory.
- * ----------------------------------------------------------------- */
+ * ----------------------------------------------------------------------- */
 RestrictWeaponsUsage(client)
 {
-	// Initialize invalid slot to search for melee weapons
+	// Initialize slot to search for melee weapons
 	new slot = SLOT_INVALID;
 
 	// Make sure melee weapon is exists
 	if ((slot = GetPlayerWeaponSlot(client, SLOT_MELEE)) != SLOT_INVALID)
 	{
-		// If weapon is found, remove it immediately (smoke?)
+		// It may not be a melee weapon really (a smoke), so remove it
 		RemovePlayerItem(client, slot);
 		AcceptEntityInput(slot, "Kill");
 	}
@@ -231,7 +231,7 @@ RestrictWeaponsUsage(client)
 	{
 		case DODTeam_Allies:
 		{
-			// Get the player's team and give proper melee depends on team
+			// Get the player's team and give proper weapon depends on team
 			GivePlayerItem(client, "weapon_amerknife");
 			FakeClientCommand(client, "use weapon_amerknife");
 		}
@@ -242,7 +242,7 @@ RestrictWeaponsUsage(client)
 		}
 	}
 
-	// In case if player is deployed MG or rocket (otherwise weapon will not change via "use" command)
+	// In case if player is deployed MG or rocket (because weapons will not change via "use" command)
 	SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", GetPlayerWeaponSlot(client, SLOT_MELEE));
 
 	// Also dont allow player to change it to any other
