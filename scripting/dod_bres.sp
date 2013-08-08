@@ -59,7 +59,7 @@ public Plugin:myinfo  =
  * -------------------------------------------------------------------------- */
 public OnPluginStart()
 {
-	// Create version CVar
+	// Create version ConVar
 	CreateConVar("dod_bonusround_resistance", PLUGIN_VERSION, PLUGIN_NAME, FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
 	// And other useful ConVars
@@ -219,31 +219,31 @@ RestrictWeaponsUsage(client)
 	// Initialize invalid slot to search for melee weapons
 	new slot = SLOT_INVALID;
 
-	// Make sure melee weapon is exists in player inventory (it may be smoke)
+	// Make sure melee weapon is exists
 	if ((slot = GetPlayerWeaponSlot(client, SLOT_MELEE)) != SLOT_INVALID)
 	{
-		// If weapon is found, remove it immediate
+		// If weapon is found, remove it immediately (smoke?)
 		RemovePlayerItem(client, slot);
 		AcceptEntityInput(slot, "Kill");
 	}
 
-	// Retrieve the player's team
 	switch (GetClientTeam(client))
 	{
 		case DODTeam_Allies:
 		{
-			// Now give melee weapon properly depends on team
+			// Get the player's team and give proper melee depends on team
 			GivePlayerItem(client, "weapon_amerknife");
 			FakeClientCommand(client, "use weapon_amerknife");
 		}
 		case DODTeam_Axis:
 		{
 			GivePlayerItem(client, "weapon_spade");
-
-			// Also set active player's weapon to this melee
 			FakeClientCommand(client, "use weapon_spade");
 		}
 	}
+
+	// In case if player is deployed MG or rocket (otherwise weapon will not change via "use" command)
+	SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", GetPlayerWeaponSlot(client, SLOT_MELEE));
 
 	// Also dont allow player to change it to any other
 	AllowWeaponsUsage[client] = false;
