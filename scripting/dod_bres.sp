@@ -39,10 +39,8 @@ enum
 }
 
 // ====[ VARIABLES ]=========================================================
-new	Handle:BR_Enabled,
-	Handle:BR_MeleeOnly,
-	bool:StopChain,
-	bool:CanUse[DOD_MAXPLAYERS + 1];
+new	Handle:BR_Enabled = INVALID_HANDLE, Handle:BR_MeleeOnly = INVALID_HANDLE,
+	bool:StopChain, bool:AllowWeaponsUsage[DOD_MAXPLAYERS + 1] = {true, ...};
 
 // ====[ PLUGIN ]============================================================
 public Plugin:myinfo  =
@@ -118,7 +116,8 @@ public OnPluginToggle(Handle:convar, const String:oldValue[], const String:newVa
  * -------------------------------------------------------------------------- */
 public OnClientPutInServer(client)
 {
-	// Also hook stuff every time player is connected
+	// Allow player to use any weapon when its conected
+	AllowWeaponsUsage[client] = true;
 	SDKHook(client, SDKHook_WeaponSwitch, OnWeaponUsage);
 	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponUsage);
 	SDKHook(client, SDKHook_WeaponEquip,  OnWeaponUsage);
@@ -131,7 +130,7 @@ public OnClientPutInServer(client)
 public Action:OnWeaponUsage(client, weapon)
 {
 	// Dont allow to player use any other weapon than active one
-	return CanUse[client] ? Plugin_Handled : Plugin_Continue;
+	return !AllowWeaponsUsage[client] ? Plugin_Handled : Plugin_Continue;
 }
 
 /* OnRoundWin()
@@ -145,7 +144,7 @@ public OnRoundWin(Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		/**
 		* This dirty way works like a charm
-		* Since event is called after team is won, the original SetWinningTeam callback is already set up
+		* Since event is called *after* team has won, the original SetWinningTeam callback is already set up
 		* However, if we change round state during this callback, it will cause infinite loop during m_flRestartRoundTime
 		* In other words this event will be fired at every frame until new round starts
 		* A solution: after event is fired once (for all the plugins), stop the SetWinningTeam hook chain
@@ -155,9 +154,9 @@ public OnRoundWin(Handle:event, const String:name[], bool:dontBroadcast)
 
 		/**
 		* Call this Fake-RoundState
-		* It _should_ set round state to normal, but its not
-		* SDKTools actually dont set round state properly as DoDHooks does
-		* Why? If I'd use DodHooks 'SetRoundState' native, it would change round state immediately
+		* It _should_ set round state to normal, but its wont
+		* SDKTools actually dont set round state properly as DoD Hooks does
+		* Why? If I'd use DoD Hooks 'SetRoundState' native, it would change round state immediately
 		* But this one just allows players to shoot during bonus round (as when round would run as usual)
 		*/
 		GameRules_SetProp("m_iRoundState", RoundState_RoundRunning);
@@ -196,7 +195,7 @@ public OnRoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 		if (IsClientInGame(client))
 		{
 			// Allow to use all weapons again when bonus round time is expired
-			CanUse[client] = false;
+			AllowWeaponsUsage[client] = true;
 		}
 	}
 }
@@ -217,12 +216,13 @@ public Action:OnSetWinningTeam(index)
  * ----------------------------------------------------------------- */
 RestrictWeaponsUsage(client)
 {
+	// Initialize invalid slot to search for melee weapons
 	new slot = SLOT_INVALID;
 
 	// Make sure melee weapon is exists in player inventory (it may be smoke)
 	if ((slot = GetPlayerWeaponSlot(client, SLOT_MELEE)) != SLOT_INVALID)
 	{
-		// If weapon is found, remove it
+		// If weapon is found, remove it immediate
 		RemovePlayerItem(client, slot);
 		AcceptEntityInput(slot, "Kill");
 	}
@@ -246,5 +246,5 @@ RestrictWeaponsUsage(client)
 	}
 
 	// Also dont allow player to change it to any other
-	CanUse[client] = true;
+	AllowWeaponsUsage[client] = false;
 }
