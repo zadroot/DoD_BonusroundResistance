@@ -2,9 +2,9 @@
 * DoD:S Bonusround Resistance by Root
 *
 * Description:
-*   Allows losers to resist humiliation (allow attacking) during bonus round!
+*   Allows losers to resist humiliation (allow attacking) during bonus round.
 *
-* Version 1.0
+* Version 1.1
 * Changelog & more info at http://goo.gl/4nKhJ
 */
 
@@ -17,7 +17,7 @@
 
 // ====[ CONSTANTS ]======================================================
 #define PLUGIN_NAME    "DoD:S Bonusround Resistance"
-#define PLUGIN_VERSION "1.0"
+#define PLUGIN_VERSION "1.1"
 #define DOD_MAXPLAYERS 33
 
 enum Teams
@@ -86,25 +86,21 @@ public OnPluginToggle(Handle:convar, const String:oldValue[], const String:newVa
 	// Loop through all valid clients
 	for (new client = 1; client <= MaxClients; client++)
 	{
-		if (!IsClientInGame(client)) continue;
-
-		// Get the new (changed) value
-		switch (StringToInt(newValue))
+		if (IsValidClient(client))
 		{
-			// Plugin has been disabled
-			case false:
+			// Get the new (changed) value
+			switch (StringToInt(newValue))
 			{
-				// Unhook weapons usage for all clients
-				SDKUnhook(client, SDKHook_WeaponSwitch, OnWeaponUsage);
-				SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponUsage);
-				SDKUnhook(client, SDKHook_WeaponEquip,  OnWeaponUsage);
-			}
-			case true:
-			{
-				// Otherwise hook all the stuff back for everyone
-				SDKHook(client, SDKHook_WeaponSwitch, OnWeaponUsage);
-				SDKHook(client, SDKHook_WeaponCanUse, OnWeaponUsage);
-				SDKHook(client, SDKHook_WeaponEquip,  OnWeaponUsage);
+				// Plugin has been disabled
+				case false:
+				{
+					// Unhook everything
+					SDKUnhook(client, SDKHook_OnTakeDamage, OnTakeDamage);
+					SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponUsage);
+					SDKUnhook(client, SDKHook_WeaponEquip,  OnWeaponUsage);
+					SDKUnhook(client, SDKHook_WeaponSwitch, OnWeaponUsage);
+				}
+				case true: OnClientPutInServer(client);
 			}
 		}
 	}
@@ -116,11 +112,28 @@ public OnPluginToggle(Handle:convar, const String:oldValue[], const String:newVa
  * ----------------------------------------------------------------------- */
 public OnClientPutInServer(client)
 {
-	// Allow player to use any weapon when its conected
+	// Allow weapons usage for every connected client
 	AllowWeaponsUsage[client] = true;
-	SDKHook(client, SDKHook_WeaponSwitch, OnWeaponUsage);
+
+	// And hook some useful stuff for a player
+	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponUsage);
 	SDKHook(client, SDKHook_WeaponEquip,  OnWeaponUsage);
+	SDKHook(client, SDKHook_WeaponSwitch, OnWeaponUsage);
+}
+
+/* OnWeaponUsage()
+ *
+ * Called when the player uses specified weapon.
+ * ----------------------------------------------------------------------- */
+public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype)
+{
+	// Block enabled friendly fire damage on bonus round (because RoundState was changed to RoundRunning)
+	return (StopChain
+	&& IsValidClient(attacker) && IsValidClient(victim)
+	&& GetClientTeam(attacker) == GetClientTeam(victim))
+	? Plugin_Handled
+	: Plugin_Continue;
 }
 
 /* OnWeaponUsage()
@@ -167,11 +180,8 @@ public OnRoundWin(Handle:event, const String:name[], bool:dontBroadcast)
 			// Find all the losers
 			for (new i = 1; i <= MaxClients; i++)
 			{
-				// Ignore != ingame players
-				if (!IsClientInGame(i)) continue;
-
 				// Compare winning team and team of other players to perform weapon changing
-				if (GetClientTeam(i) != GetEventInt(event, "team"))
+				if (IsValidClient(i) && GetClientTeam(i) != GetEventInt(event, "team"))
 				{
 					RestrictWeaponsUsage(i);
 				}
@@ -247,4 +257,14 @@ RestrictWeaponsUsage(client)
 
 	// Also dont allow player to change it to any other
 	AllowWeaponsUsage[client] = false;
+}
+
+/* IsValidClient()
+ *
+ * Checks if a client is valid.
+ * ------------------------------------------------------------------------- */
+bool:IsValidClient(client)
+{
+	// ingame edict and not a server
+	return (client > 0 && client <= MaxClients && IsClientInGame(client)) ? true : false;
 }
