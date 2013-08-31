@@ -161,7 +161,7 @@ public OnRoundWin(Handle:event, const String:name[], bool:dontBroadcast)
 		* However, if we change round state during this callback, it will cause infinite loop during "m_flRestartRoundTime"
 		* In other words this event will be fired at every frame until new round starts
 		* A solution is when event is fired, stop the SetWinningTeam callback chain
-		* The winners panel still will be shown, and round will started eventually after bonus round time is expired
+		* The winners panel still will be shown, and round will start eventually (after bonus round time is expired)
 		*/
 		StopChain = true;
 
