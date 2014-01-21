@@ -8,8 +8,6 @@
 * Changelog & more info at http://goo.gl/4nKhJ
 */
 
-#pragma semicolon 1
-
 // ====[ INCLUDES ]=======================================================
 #include <sdktools>
 #include <sdkhooks>
@@ -20,13 +18,7 @@
 #define PLUGIN_VERSION "1.1"
 #define DOD_MAXPLAYERS 33
 
-enum Teams
-{
-	DODTeam_Unassigned,
-	DODTeam_Spectator,
-	DODTeam_Allies,
-	DODTeam_Axis
-}
+static const String:melee[][] = { "weapon_amerknife", "weapon_spade" };
 
 enum
 {
@@ -36,7 +28,7 @@ enum
 	SLOT_MELEE,
 	SLOT_GRENADE,
 	SLOT_EXPLOSIVE
-}
+};
 
 // ====[ VARIABLES ]======================================================
 new	Handle:BR_Enabled = INVALID_HANDLE, Handle:BR_MeleeOnly = INVALID_HANDLE,
@@ -50,7 +42,7 @@ public Plugin:myinfo  =
 	description = "Allows losers to resist humiliation (allow attacking) during bonus round",
 	version     = PLUGIN_VERSION,
 	url         = "http://dodsplugins.com/"
-};
+}
 
 
 /* OnPluginStart()
@@ -61,8 +53,6 @@ public OnPluginStart()
 {
 	// Create version ConVar
 	CreateConVar("dod_bonusround_resistance", PLUGIN_VERSION, PLUGIN_NAME, FCVAR_NOTIFY|FCVAR_DONTRECORD);
-
-	// And other plugin ConVars
 	BR_Enabled   = CreateConVar("dod_bres_enabled",    "1", "Whether or not enable Bonusround Resistance",                   FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	BR_MeleeOnly = CreateConVar("dod_bres_allowmelee", "1", "Whether or not dont allow losers to use all weapons but melee", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 
@@ -239,20 +229,20 @@ RestrictWeaponsUsage(client)
 
 	switch (GetClientTeam(client))
 	{
-		case DODTeam_Allies:
+		case Team_Allies:
 		{
 			// Get the player's team and give proper weapon depends on team
-			GivePlayerItem(client, "weapon_amerknife");
-			FakeClientCommand(client, "use weapon_amerknife");
+			GivePlayerItem(client, melee[Team_Allies-2]);
+			FakeClientCommand(client, "use %s", melee[Team_Allies-2]);
 		}
-		case DODTeam_Axis:
+		case Team_Axis:
 		{
-			GivePlayerItem(client, "weapon_spade");
-			FakeClientCommand(client, "use weapon_spade");
+			GivePlayerItem(client, melee[Team_Axis-2]);
+			FakeClientCommand(client, "use %s", melee[Team_Axis-2]);
 		}
 	}
 
-	// In case if player is deployed MG or rocket (because weapons will not change via "use" command)
+	// Force to change melee in case if player has deployed MG or rocket launchers (because weapons will not change via "use" command)
 	SetEntPropEnt(client, Prop_Data, "m_hActiveWeapon", GetPlayerWeaponSlot(client, SLOT_MELEE));
 
 	// Also dont allow player to change it to any other
@@ -265,6 +255,6 @@ RestrictWeaponsUsage(client)
  * ------------------------------------------------------------------------- */
 bool:IsValidClient(client)
 {
-	// ingame edict and not a server
-	return (client > 0 && client <= MaxClients && IsClientInGame(client)) ? true : false;
+	// Player index must be between 1 and MaxClients vaue, also ingame
+	return (1 <= client <= MaxClients && IsClientInGame(client)) ? true : false;
 }
