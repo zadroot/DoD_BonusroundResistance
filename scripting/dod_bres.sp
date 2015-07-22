@@ -78,20 +78,23 @@ public OnPluginToggle(Handle:convar, const String:oldValue[], const String:newVa
 	{
 		if (IsValidClient(client))
 		{
-			// Get the new (changed) value
-			switch (StringToInt(newValue))
+			if (IsPlayerAlive(client))
 			{
-				// Plugin has been disabled
-				case false:
+				// Get the new (changed) value
+				switch (StringToInt(newValue))
 				{
-					// Unhook everything
-					SDKUnhook(client, SDKHook_OnTakeDamage, OnTakeDamage);
-					SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponUsage);
-					SDKUnhook(client, SDKHook_WeaponEquip,  OnWeaponUsage);
-					SDKUnhook(client, SDKHook_WeaponSwitch, OnWeaponUsage);
+					// Plugin has been disabled
+					case false:
+					{
+						// Unhook everything
+						SDKUnhook(client, SDKHook_OnTakeDamage, OnTakeDamage);
+						SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponUsage);
+						SDKUnhook(client, SDKHook_WeaponEquip,  OnWeaponUsage);
+						SDKUnhook(client, SDKHook_WeaponSwitch, OnWeaponUsage);
+					}
+					case true: OnClientPutInServer(client);
 				}
-				case true: OnClientPutInServer(client);
-			}
+			}	
 		}
 	}
 }
@@ -173,8 +176,11 @@ public OnRoundWin(Handle:event, const String:name[], bool:dontBroadcast)
 				// Compare winning team and team of other players to perform weapon changing
 				if (IsValidClient(i) && GetClientTeam(i) != GetEventInt(event, "team"))
 				{
-					RestrictWeaponsUsage(i);
-				}
+					if (IsPlayerAlive(i))
+					{
+						RestrictWeaponsUsage(i);
+					}	
+				}				
 			}
 		}
 	}
@@ -255,6 +261,6 @@ RestrictWeaponsUsage(client)
  * ------------------------------------------------------------------------- */
 bool:IsValidClient(client)
 {
-	// Player index must be between 1 and MaxClients vaue, also ingame
+	// Player index must be between 1 and MaxClients value, also ingame
 	return (1 <= client <= MaxClients && IsClientInGame(client)) ? true : false;
 }
